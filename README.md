@@ -51,6 +51,27 @@ Each sample stores raw measurements; the 0–100 score is computed when a map is
 
 The router is assumed to be the first address on your Wi-Fi subnet (for example `192.168.4.1`). If yours differs, set it in **Settings → Router address**.
 
+## Ads and "Remove ads"
+
+Ads come from Google AdMob (SDK pinned in `project.yml`):
+- **Home:** one native ad card between "Check Here" and "Saved maps".
+- **After saving a recording:** a full-screen ad, at most once every 5 minutes and only after 10 or more samples.
+- **Settings → Ads:** "Remove ads", a one-time purchase (`com.ravitej.wifimapper.removeads`), plus Restore Purchases and, where the law requires it, Ad privacy choices.
+
+Ad traffic shares the Wi-Fi link the app measures, so **no ads load or show while a recording is running**.
+
+On first launch, the consent prompts (Google's consent form where required, then Apple's tracking prompt) appear only after the location prompt has been answered.
+
+Debug builds use Google's test ads. **Release builds show no ads until you set real IDs**:
+1. Create the app and two ad units (Native advanced, Interstitial) in AdMob.
+2. Put the ad unit IDs in `WiFiMapper/Ads/AdConfig.swift` and the app ID in `GADApplicationIdentifier` in `project.yml`, then run `xcodegen generate`.
+3. In AdMob, set up the GDPR and IDFA messages under **Privacy & messaging**.
+4. In App Store Connect, create the non-consumable `com.ravitej.wifimapper.removeads`, and update the app's privacy label for advertising data.
+
+Running from Xcode uses `WiFiMapper.storekit`, so "Remove ads" can be bought and reset (Debug → StoreKit → Manage Transactions) without App Store Connect.
+
+Debug-only: `-skipAdConsent` skips the consent prompts, for checking ads in the simulator.
+
 ## Field test
 
 1. Pick a default mode in Settings (either is fine to start).

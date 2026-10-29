@@ -8,6 +8,8 @@ struct WiFiMapperApp: App {
     @State private var path: NetworkPathService
     @State private var monitor: SignalMonitor
     @State private var router = Router()
+    @State private var ads = AdsManager()
+    @State private var store = PurchaseStore()
 
     init() {
         let path = NetworkPathService()
@@ -22,6 +24,8 @@ struct WiFiMapperApp: App {
                 .environment(path)
                 .environment(monitor)
                 .environment(router)
+                .environment(ads)
+                .environment(store)
         }
         .modelContainer(for: [WiFiMap.self, SignalSample.self])
     }
@@ -52,6 +56,8 @@ struct RootView: View {
     @Environment(LocationService.self) private var location
     @Environment(SignalMonitor.self) private var monitor
     @Environment(Router.self) private var router
+    @Environment(AdsManager.self) private var ads
+    @Environment(PurchaseStore.self) private var store
     #if DEBUG
     @Environment(\.modelContext) private var context
     #endif
@@ -71,6 +77,16 @@ struct RootView: View {
                 }
         }
         .tint(Brand.blue)
+        .task { await store.load() }
+        .onChange(of: store.adsRemoved, initial: true) { _, removed in
+            ads.adsRemoved = removed
+        }
+        // Ask for ad consent only after the location prompt is answered, so prompts don't stack.
+        .task(id: location.authorization) {
+            if location.authorization != .notDetermined {
+                await ads.startIfNeeded()
+            }
+        }
         #if DEBUG
         .task {
             DemoData.seedIfRequested(context)

@@ -3,6 +3,7 @@ import SwiftUI
 struct HomeView: View {
     @Environment(LocationService.self) private var location
     @Environment(Router.self) private var router
+    @Environment(AdsManager.self) private var ads
 
     var body: some View {
         ScrollView {
@@ -44,6 +45,14 @@ struct HomeView: View {
                     .buttonStyle(.plain)
                 }
 
+                if ads.showsAds, !ads.isPausedForMeasurement, let nativeAd = ads.nativeAd {
+                    VStack(alignment: .leading, spacing: 10) {
+                        SectionHeader(title: "Sponsored")
+                        NativeAdCard(nativeAd: nativeAd)
+                            .card(padding: 14)
+                    }
+                }
+
                 HistorySection()
             }
             .padding(.horizontal, 16)
@@ -51,6 +60,7 @@ struct HomeView: View {
         }
         .brandBackground()
         .toolbar(.hidden, for: .navigationBar)
+        .onAppear { ads.loadAdsIfNeeded() }
     }
 
     private var header: some View {

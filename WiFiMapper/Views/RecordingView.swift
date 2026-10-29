@@ -9,6 +9,7 @@ struct RecordingView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(SignalMonitor.self) private var monitor
     @Environment(LocationService.self) private var location
+    @Environment(AdsManager.self) private var ads
     @AppStorage(AppSettingsKey.scoringMode) private var mode = ScoringMode.fallback
     @State private var session: RecordingSession?
     @State private var startedAt = Date.now
@@ -33,8 +34,10 @@ struct RecordingView: View {
         .alert("Save recording", isPresented: $showFinish) {
             TextField("Name", text: $name)
             Button("Save") {
+                let samples = session?.acceptedCount ?? 0
                 session?.finish(name: name)
                 dismiss()
+                ads.showInterstitialAfterRecording(samples: samples)
             }
             Button("Discard", role: .destructive) {
                 session?.discard()
@@ -153,6 +156,8 @@ struct RecordingView: View {
         }
         name = map.name
         startedAt = .now
+        // Ad traffic would share the Wi-Fi link being measured.
+        ads.isPausedForMeasurement = true
 
         let defaults = UserDefaults.standard
         let newSession = RecordingSession(
@@ -176,5 +181,6 @@ struct RecordingView: View {
     private func end() {
         monitor.onReading = nil
         location.setRecordingMode(false)
+        ads.isPausedForMeasurement = false
     }
 }

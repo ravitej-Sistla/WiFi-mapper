@@ -72,4 +72,6 @@ Done: all of the files above, plus `Views/Format.swift`, and the `Route`/`Router
 - `WiFiMapperTests/`: 18 tests (scoring, IDW, stats) pass on the simulator.
 - The app launches on the simulator and shows Home plus the location prompt.
 
+Ads (added after the first build): AdMob native card on Home, full-screen ad after saving a recording, "Remove ads" purchase (StoreKit 2), consent via UMP + ATT. Ads pause during recordings because ad traffic would skew link-quality readings. Checked in the simulator with test ads: the native ad renders and Google's native ad validator reports no issues. The full-screen ad and the purchase flow have not been tried yet.
+
 Not yet verified: anything that needs a real device on real Wi-Fi (SSID/BSSID/signal strength, router probe, GPS recording, background recording). The field test is next.

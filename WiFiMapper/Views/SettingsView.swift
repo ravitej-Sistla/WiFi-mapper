@@ -7,6 +7,8 @@ struct SettingsView: View {
     @AppStorage(AppSettingsKey.gatewayOverride) private var gatewayOverride = ""
     @AppStorage(AppSettingsKey.throughputEnabled) private var throughputEnabled = false
     @AppStorage(AppSettingsKey.throughputURL) private var throughputURL = AppDefaults.throughputURL
+    @Environment(PurchaseStore.self) private var store
+    @Environment(AdsManager.self) private var ads
 
     var body: some View {
         Form {
@@ -69,6 +71,46 @@ struct SettingsView: View {
             }
 
             Section {
+                if store.adsRemoved {
+                    row("Ads removed — thank you!", icon: "checkmark.seal.fill", color: .green)
+                } else {
+                    Button {
+                        Task { await store.purchaseRemoveAds() }
+                    } label: {
+                        HStack {
+                            row("Remove ads", icon: "sparkles", color: .pink)
+                            Spacer()
+                            if store.isPurchasing {
+                                ProgressView()
+                            } else if let product = store.removeAdsProduct {
+                                Text(product.displayPrice)
+                                    .font(.subheadline.weight(.semibold))
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 5)
+                                    .background(Brand.blue.opacity(0.14), in: Capsule())
+                            } else {
+                                Text("Unavailable").font(.subheadline).foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                    .foregroundStyle(.primary)
+                    .disabled(store.removeAdsProduct == nil || store.isPurchasing)
+                }
+                Button("Restore purchases") {
+                    Task { await store.restore() }
+                }
+                if ads.privacyOptionsRequired {
+                    Button("Ad privacy choices") {
+                        Task { await ads.presentPrivacyOptions() }
+                    }
+                }
+            } header: {
+                Text("Ads")
+            } footer: {
+                Text("A one-time purchase removes all ads. Ads never load while a recording is measuring.")
+            }
+
+            Section {
                 VStack(spacing: 8) {
                     Image(systemName: "wifi")
                         .font(.system(size: 22, weight: .bold))
@@ -79,7 +121,7 @@ struct SettingsView: View {
                     Text("Version \(appVersion)")
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                    Text("Your maps stay on this device. No account needed.")
+                    Text("Your maps stay on this device. No account needed. Ads are provided by Google AdMob.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -89,6 +131,14 @@ struct SettingsView: View {
         }
         .brandBackground()
         .navigationTitle("Settings")
+        .alert("Purchase failed", isPresented: Binding(
+            get: { store.errorMessage != nil },
+            set: { if !$0 { store.errorMessage = nil } }
+        )) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(store.errorMessage ?? "")
+        }
     }
 
     private func row(_ title: String, icon: String, color: Color) -> some View {
