@@ -74,4 +74,6 @@ Done: all of the files above, plus `Views/Format.swift`, and the `Route`/`Router
 
 Ads (added after the first build): AdMob native card on Home, full-screen ad after saving a recording, "Remove ads" purchase (StoreKit 2), consent via UMP + ATT. Ads pause during recordings because ad traffic would skew link-quality readings. Checked in the simulator with test ads: the native ad renders and Google's native ad validator reports no issues. The full-screen ad and the purchase flow have not been tried yet.
 
+Access point location (added after ads): `Models/AccessPointLocator.swift` fits a log-distance model per node by grid search (falls back to a weighted centroid). Shown as pins with uncertainty circles while recording and on saved maps. 9 unit tests, including a one-sided walk where the node is off the path. In the two-node demo it finds both nodes; on real devices it's untested.
+
 Not yet verified: anything that needs a real device on real Wi-Fi (SSID/BSSID/signal strength, router probe, GPS recording, background recording). The field test is next.

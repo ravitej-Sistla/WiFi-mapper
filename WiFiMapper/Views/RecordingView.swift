@@ -11,6 +11,8 @@ struct RecordingView: View {
     @Environment(LocationService.self) private var location
     @Environment(AdsManager.self) private var ads
     @AppStorage(AppSettingsKey.scoringMode) private var mode = ScoringMode.fallback
+    @AppStorage(AppSettingsKey.showAccessPoints) private var showAccessPoints = true
+    @State private var accessPoints: [AccessPointEstimate] = []
     @State private var session: RecordingSession?
     @State private var startedAt = Date.now
     @State private var showFinish = false
@@ -18,7 +20,8 @@ struct RecordingView: View {
 
     var body: some View {
         ZStack(alignment: .bottom) {
-            HeatmapMapView(points: session?.map.heatPoints(mode: mode) ?? [], showSampleDots: true, followsUser: true)
+            HeatmapMapView(points: session?.map.heatPoints(mode: mode) ?? [], showSampleDots: true,
+                           accessPoints: showAccessPoints ? accessPoints : [], followsUser: true)
                 .ignoresSafeArea()
             if let session {
                 controls(session)
@@ -31,6 +34,13 @@ struct RecordingView: View {
         .navigationBarBackButtonHidden()
         .onAppear(perform: begin)
         .onDisappear(perform: end)
+        .task(id: session?.acceptedCount ?? 0) {
+            // Coalesce bursts of new samples before re-running the locator.
+            try? await Task.sleep(for: .milliseconds(300))
+            guard !Task.isCancelled, let map = session?.map else { return }
+            let estimates = await AccessPointLocator.locateInBackground(map.locatorSamples())
+            if !Task.isCancelled { accessPoints = estimates }
+        }
         .alert("Save recording", isPresented: $showFinish) {
             TextField("Name", text: $name)
             Button("Save") {
@@ -88,6 +98,8 @@ struct RecordingView: View {
                 stat("GPS", Format.number(accuracy, unit: "m"), icon: "location.fill", color: gpsReady ? .green : .orange)
             }
 
+            accessPointRow
+
             if !session.isPaused && !gpsReady {
                 Label("Waiting for GPS accuracy of \(Format.number(session.accuracyThreshold, unit: "m")) or better. Stay outdoors or near windows.",
                       systemImage: "location.circle")
@@ -125,6 +137,39 @@ struct RecordingView: View {
         .shadow(color: .black.opacity(0.3), radius: 20, y: 8)
         .environment(\.colorScheme, .dark)
         .padding()
+    }
+
+    private var accessPointRow: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "wifi.router.fill")
+                .foregroundStyle(Brand.teal)
+            Text(accessPointStatus)
+                .font(.caption)
+                .foregroundStyle(.white.opacity(0.8))
+                .lineLimit(2)
+            Spacer(minLength: 4)
+            Button {
+                showAccessPoints.toggle()
+            } label: {
+                Image(systemName: showAccessPoints ? "eye.fill" : "eye.slash.fill")
+                    .font(.caption)
+                    .foregroundStyle(.white)
+                    .frame(width: 30, height: 30)
+                    .background(.white.opacity(0.12), in: Circle())
+            }
+            .accessibilityLabel(showAccessPoints ? "Hide access points" : "Show access points")
+        }
+    }
+
+    private var accessPointStatus: String {
+        let located = accessPoints.count
+        let current = monitor.reading?.bssid
+            .flatMap(AccessPointLocator.nodeKey(for:))
+            .flatMap { key in accessPoints.first { $0.id == key } }
+        let count = located == 1 ? "1 access point located" : "\(located) access points located"
+        if let current { return "On \(current.label) · \(count)" }
+        if located == 0 { return "Locating access points. Walk around each node." }
+        return count
     }
 
     private func stat(_ title: String, _ value: String, icon: String, color: Color) -> some View {

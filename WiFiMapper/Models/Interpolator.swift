@@ -24,10 +24,7 @@ struct IDWInterpolator {
     private struct BucketKey: Hashable { let x: Int; let y: Int }
     private struct Projected { let x: Double; let y: Double; let value: Double }
 
-    private let originLatitude: Double
-    private let originLongitude: Double
-    private let metersPerDegreeLongitude: Double
-    private static let metersPerDegreeLatitude = 111_132.0
+    private let projection: LocalProjection
     private var buckets: [BucketKey: [Projected]] = [:]
 
     init(points: [HeatPoint], radius: Double = IDWInterpolator.defaultRadius, power: Double = 2) {
@@ -35,12 +32,11 @@ struct IDWInterpolator {
         self.power = power
         self.count = points.count
         let n = Double(max(points.count, 1))
-        originLatitude = points.reduce(0) { $0 + $1.latitude } / n
-        originLongitude = points.reduce(0) { $0 + $1.longitude } / n
-        metersPerDegreeLongitude = 111_320 * cos(originLatitude * .pi / 180)
+        projection = LocalProjection(originLatitude: points.reduce(0) { $0 + $1.latitude } / n,
+                                     originLongitude: points.reduce(0) { $0 + $1.longitude } / n)
 
         for point in points {
-            let (x, y) = project(latitude: point.latitude, longitude: point.longitude)
+            let (x, y) = projection.project(latitude: point.latitude, longitude: point.longitude)
             buckets[bucketKey(x: x, y: y), default: []].append(Projected(x: x, y: y, value: point.value))
         }
     }
@@ -50,7 +46,7 @@ struct IDWInterpolator {
     /// Interpolated value at a coordinate, or nil when no sample lies within `radius`.
     func estimate(latitude: Double, longitude: Double) -> HeatEstimate? {
         guard !isEmpty else { return nil }
-        let (x, y) = project(latitude: latitude, longitude: longitude)
+        let (x, y) = projection.project(latitude: latitude, longitude: longitude)
         let key = bucketKey(x: x, y: y)
         var weightSum = 0.0
         var valueSum = 0.0
@@ -74,12 +70,32 @@ struct IDWInterpolator {
         return HeatEstimate(value: valueSum / weightSum, nearestDistance: nearest)
     }
 
-    private func project(latitude: Double, longitude: Double) -> (Double, Double) {
+    private func bucketKey(x: Double, y: Double) -> BucketKey {
+        BucketKey(x: Int(floor(x / radius)), y: Int(floor(y / radius)))
+    }
+}
+
+/// East/north meters around an origin. Accurate to well under a meter over a property-sized area.
+struct LocalProjection {
+    static let metersPerDegreeLatitude = 111_132.0
+
+    let originLatitude: Double
+    let originLongitude: Double
+    private let metersPerDegreeLongitude: Double
+
+    init(originLatitude: Double, originLongitude: Double) {
+        self.originLatitude = originLatitude
+        self.originLongitude = originLongitude
+        metersPerDegreeLongitude = 111_320 * cos(originLatitude * .pi / 180)
+    }
+
+    func project(latitude: Double, longitude: Double) -> (x: Double, y: Double) {
         ((longitude - originLongitude) * metersPerDegreeLongitude,
          (latitude - originLatitude) * Self.metersPerDegreeLatitude)
     }
 
-    private func bucketKey(x: Double, y: Double) -> BucketKey {
-        BucketKey(x: Int(floor(x / radius)), y: Int(floor(y / radius)))
+    func unproject(x: Double, y: Double) -> (latitude: Double, longitude: Double) {
+        (originLatitude + y / Self.metersPerDegreeLatitude,
+         originLongitude + x / metersPerDegreeLongitude)
     }
 }

@@ -51,6 +51,18 @@ Each sample stores raw measurements; the 0–100 score is computed when a map is
 
 The router is assumed to be the first address on your Wi-Fi subnet (for example `192.168.4.1`). If yours differs, set it in **Settings → Router address**.
 
+## Locating access points
+
+While you record, and on any saved map, the app estimates where each mesh node is and pins it with a dashed uncertainty circle. A saved map also tells you where the nearest node is from where you're standing ("Node 2 is about 22 m south (±6 m)").
+
+iOS only reports the node you're connected to, so this isn't multi-AP triangulation. Each sample records "I was here, on node X, at strength S". For each node, `AccessPointLocator`:
+1. Groups BSSIDs that differ only in the last octet, since a node's 2.4 GHz and 5 GHz radios share the rest.
+2. Uses Apple's signal strength if iOS reports it for most of that node's samples, otherwise the link-quality score.
+3. Searches a 1 m grid reaching 15 m beyond the walked area for the spot where `strength = a + b·log10(distance)` fits best. This can place a node inside a room you didn't enter.
+4. Reports a ±radius from the spread of near-best positions, with low, medium or high confidence. With fewer than 8 samples or a poor fit, it falls back to a weighted average of the strongest samples' positions.
+
+For good results, walk on all sides of each node, and come back near it once or twice. Indoor GPS error (5–10 m) limits accuracy, so treat the pin as "which room", not "which shelf".
+
 ## Ads and "Remove ads"
 
 Ads come from Google AdMob (SDK pinned in `project.yml`):

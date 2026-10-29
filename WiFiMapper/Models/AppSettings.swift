@@ -8,6 +8,7 @@ enum AppSettingsKey {
     static let gatewayOverride = "gatewayOverride"
     static let throughputEnabled = "throughputEnabled"
     static let throughputURL = "throughputURL"
+    static let showAccessPoints = "showAccessPoints"
 }
 
 enum AppDefaults {
