@@ -9,35 +9,48 @@ struct CheckHereView: View {
     @AppStorage(AppSettingsKey.scoringMode) private var mode = ScoringMode.fallback
 
     var body: some View {
-        List {
-            Section("Live signal") {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
                 LiveSignalCard()
-            }
 
-            Section("Saved maps at this spot") {
-                if let here = location.location {
-                    let matches = matches(latitude: here.coordinate.latitude, longitude: here.coordinate.longitude)
-                    if matches.isEmpty {
-                        Text("None of your saved maps cover this spot.")
-                            .foregroundStyle(.secondary)
-                    }
-                    ForEach(matches, id: \.map.persistentModelID) { match in
-                        Button {
-                            router.show(.map(match.map))
-                        } label: {
-                            row(match.map, estimate: match.estimate)
-                        }
-                        .foregroundStyle(.primary)
-                    }
-                } else if location.isDenied {
-                    Text("Location access is off, so your spot can't be matched to a map.")
-                        .foregroundStyle(.secondary)
-                } else {
-                    ProgressView("Getting your location…")
+                VStack(alignment: .leading, spacing: 10) {
+                    SectionHeader(title: "Saved maps at this spot")
+                    results
                 }
             }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
         }
+        .brandBackground()
         .navigationTitle("Check Here")
+    }
+
+    @ViewBuilder
+    private var results: some View {
+        if let here = location.location {
+            let matches = matches(latitude: here.coordinate.latitude, longitude: here.coordinate.longitude)
+            if matches.isEmpty {
+                message(icon: "mappin.slash", title: "No maps cover this spot",
+                        detail: "Record a walk here to add it to a map.")
+            }
+            ForEach(matches, id: \.map.persistentModelID) { match in
+                Button {
+                    router.show(.map(match.map))
+                } label: {
+                    row(match.map, estimate: match.estimate)
+                }
+                .buttonStyle(.plain)
+            }
+        } else if location.isDenied {
+            message(icon: "location.slash", title: "Location access is off",
+                    detail: "Your spot can't be matched to a map without it.")
+        } else {
+            HStack(spacing: 12) {
+                ProgressView()
+                Text("Getting your location…").foregroundStyle(.secondary)
+            }
+            .card()
+        }
     }
 
     private func matches(latitude: Double, longitude: Double) -> [(map: WiFiMap, estimate: HeatEstimate)] {
@@ -49,17 +62,34 @@ struct CheckHereView: View {
     }
 
     private func row(_ map: WiFiMap, estimate: HeatEstimate) -> some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 3) {
-                Text("\(map.name) · v\(map.version)").font(.headline).lineLimit(1)
-                Text("Updated \(map.updatedAt.formatted(.relative(presentation: .named))) · nearest sample \(Format.number(estimate.nearestDistance, unit: "m"))")
+        HStack(spacing: 14) {
+            SignalRing(score: estimate.value, lineWidth: 5, valueFont: .system(size: 15, weight: .bold, design: .rounded))
+                .frame(width: 50, height: 50)
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 6) {
+                    Text(map.name).font(.headline).lineLimit(1)
+                    Pill(text: "v\(map.version)")
+                }
+                Text("\(SignalQuality(score: estimate.value).label) here · nearest sample \(Format.number(estimate.nearestDistance, unit: "m"))")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-            Spacer()
-            Text(Format.score(estimate.value))
-                .font(.title3.bold().monospacedDigit())
-                .foregroundStyle(SignalColor.color(for: estimate.value))
+            Spacer(minLength: 0)
+            Image(systemName: "chevron.right")
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(.tertiary)
         }
+        .card(padding: 14)
+    }
+
+    private func message(icon: String, title: String, detail: String) -> some View {
+        HStack(spacing: 14) {
+            IconTile(systemName: icon, color: .gray, size: 38)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title).font(.headline)
+                Text(detail).font(.caption).foregroundStyle(.secondary)
+            }
+        }
+        .card(padding: 14)
     }
 }

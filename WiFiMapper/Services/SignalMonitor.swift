@@ -59,7 +59,8 @@ final class SignalMonitor {
         let settings = ProbeSettings.load()
         async let info = WiFiInfoService.fetchCurrent()
         let gateway = settings.gatewayOverride ?? GatewayResolver.guessedGateway()
-        var link = LinkQualityResult.unreachable
+        // No router to probe means link quality is unknown, not zero.
+        var link: LinkQualityResult?
         if let gateway {
             link = await probe.measure(host: gateway, throughputURL: settings.throughputURL)
         }
@@ -74,10 +75,10 @@ final class SignalMonitor {
         let metrics = SampleMetrics(
             connected: true,
             appleStrength: snapshot?.signalStrength,
-            rttMs: link.rttMs,
-            jitterMs: link.jitterMs,
-            lossPct: link.lossPct,
-            throughputMbps: link.throughputMbps
+            rttMs: link?.rttMs,
+            jitterMs: link?.jitterMs,
+            lossPct: link?.lossPct,
+            throughputMbps: link?.throughputMbps
         )
         publish(Reading(timestamp: started, ssid: snapshot?.ssid, bssid: snapshot?.bssid, gateway: gateway, metrics: metrics))
     }

@@ -17,9 +17,8 @@ struct HeatmapMapView: UIViewRepresentable {
         mapView.pointOfInterestFilter = .excludingAll
         mapView.showsUserLocation = true
         mapView.showsScale = true
-        if followsUser || points.isEmpty {
-            mapView.setUserTrackingMode(.follow, animated: false)
-        }
+        // Following starts once the first fix arrives, after zooming in (see the coordinator).
+        context.coordinator.zoomToUser = followsUser || points.isEmpty
 
         let trackingButton = MKUserTrackingButton(mapView: mapView)
         trackingButton.translatesAutoresizingMaskIntoConstraints = false
@@ -60,6 +59,29 @@ struct HeatmapMapView: UIViewRepresentable {
         var showSampleDots = false
         var overlay: HeatmapOverlay?
         var didFit = false
+        /// Zoom to property scale on the first location fix (recording, or a map with no samples).
+        var zoomToUser = false
+        static let userCameraDistance = 300.0
+
+        private var pendingZoom = false
+
+        func mapView(_ mapView: MKMapView, didUpdate userLocation: MKUserLocation) {
+            guard zoomToUser, userLocation.location != nil else { return }
+            zoomToUser = false
+            // Follow mode picks its own (city-scale) zoom and ignores region changes while it settles,
+            // so cap the zoom-out distance until it has settled, then lift the cap.
+            pendingZoom = true
+            mapView.setCameraZoomRange(MKMapView.CameraZoomRange(maxCenterCoordinateDistance: Self.userCameraDistance), animated: false)
+            mapView.setUserTrackingMode(.follow, animated: false)
+        }
+
+        func mapView(_ mapView: MKMapView, regionDidChangeAnimated animated: Bool) {
+            guard pendingZoom else { return }
+            pendingZoom = false
+            DispatchQueue.main.async {
+                mapView.setCameraZoomRange(MKMapView.CameraZoomRange(minCenterCoordinateDistance: 0), animated: false)
+            }
+        }
 
         func mapView(_ mapView: MKMapView, rendererFor overlay: MKOverlay) -> MKOverlayRenderer {
             if let heatmap = overlay as? HeatmapOverlay {

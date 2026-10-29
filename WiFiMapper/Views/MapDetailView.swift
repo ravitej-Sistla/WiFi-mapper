@@ -20,11 +20,13 @@ struct MapDetailView: View {
         let points = map.heatPoints(mode: mode)
         ZStack(alignment: .bottom) {
             HeatmapMapView(points: points, showSampleDots: showDots)
-                .ignoresSafeArea(edges: .bottom)
+                .ignoresSafeArea()
             hereCard(interpolator: IDWInterpolator(points: points))
         }
         .navigationTitle(map.name)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(.visible, for: .navigationBar)
+        .toolbarBackground(.ultraThinMaterial, for: .navigationBar)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
@@ -43,6 +45,7 @@ struct MapDetailView: View {
                     } label: {
                         Label("Compare scoring modes", systemImage: "rectangle.split.2x1")
                     }
+                    Divider()
                     Toggle(isOn: $showDots) {
                         Label("Show sample dots", systemImage: "circle.grid.3x3")
                     }
@@ -67,47 +70,59 @@ struct MapDetailView: View {
         }
         let live = path.kind == .wifi ? monitor.reading.flatMap { mode.score($0.metrics) } : nil
 
-        return VStack(spacing: 10) {
+        return VStack(spacing: 14) {
             Picker("Scoring mode", selection: Binding(get: { mode }, set: { selectedMode = $0 })) {
                 ForEach(ScoringMode.allCases) { Text($0.title).tag($0) }
             }
             .pickerStyle(.segmented)
 
-            HStack(alignment: .top) {
-                VStack {
-                    Text(Format.score(estimate?.value))
-                        .font(.largeTitle.bold().monospacedDigit())
-                        .foregroundStyle(SignalColor.color(for: estimate?.value))
-                    Text(hereCaption(estimate: estimate))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
-                }
-                .frame(maxWidth: .infinity)
-                VStack {
-                    Text(Format.score(live))
-                        .font(.largeTitle.bold().monospacedDigit())
-                        .foregroundStyle(SignalColor.color(for: live))
-                    Text(path.kind == .wifi ? "Live now" : "Not on Wi-Fi")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                .frame(maxWidth: .infinity)
+            HStack(spacing: 12) {
+                gauge(score: estimate?.value, title: "Map here", detail: hereCaption(estimate: estimate), icon: "map.fill")
+                gauge(score: live, title: "Live now", detail: path.kind == .wifi ? (monitor.reading?.ssid ?? "Wi-Fi") : "Not on Wi-Fi",
+                      icon: "dot.radiowaves.left.and.right")
             }
 
-            Text("v\(map.version) · \(map.samples.count) samples · updated \(map.updatedAt.formatted(.relative(presentation: .named)))")
-                .font(.caption2)
-                .foregroundStyle(.secondary)
+            LegendBar()
+
+            HStack(spacing: 8) {
+                Pill(text: "v\(map.version)")
+                Text("\(map.samples.count) samples · updated \(map.updatedAt.formatted(.relative(presentation: .named)))")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                Spacer(minLength: 0)
+            }
         }
+        .padding(16)
+        .frame(maxWidth: 520)
+        .background(Brand.card.opacity(0.9), in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .shadow(color: .black.opacity(0.18), radius: 20, y: 8)
         .padding()
-        .frame(maxWidth: 500)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
-        .padding()
+    }
+
+    private func gauge(score: Double?, title: String, detail: String, icon: String) -> some View {
+        HStack(spacing: 12) {
+            SignalRing(score: score, lineWidth: 6, valueFont: .system(size: 20, weight: .bold, design: .rounded))
+                .frame(width: 58, height: 58)
+            VStack(alignment: .leading, spacing: 3) {
+                Label(title, systemImage: icon)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(Brand.blue)
+                Text(score.map { SignalQuality(score: $0).label } ?? "—")
+                    .font(.headline)
+                Text(detail)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+            }
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity)
     }
 
     private func hereCaption(estimate: HeatEstimate?) -> String {
         if location.location == nil { return "Waiting for location" }
-        guard let estimate else { return "Outside the mapped area" }
-        return "Map here (nearest sample \(Format.number(estimate.nearestDistance, unit: "m")))"
+        guard let estimate else { return "Outside mapped area" }
+        return "Nearest sample \(Format.number(estimate.nearestDistance, unit: "m"))"
     }
 }

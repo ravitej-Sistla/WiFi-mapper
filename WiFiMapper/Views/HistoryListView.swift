@@ -1,38 +1,73 @@
 import SwiftData
 import SwiftUI
 
-/// Saved maps, most recently updated first. Swipe to delete or rename.
+/// Saved maps, most recently updated first. Long-press a card to rename or delete.
 struct HistorySection: View {
     @Query(sort: \WiFiMap.updatedAt, order: .reverse) private var maps: [WiFiMap]
     @Environment(\.modelContext) private var context
     @AppStorage(AppSettingsKey.scoringMode) private var mode = ScoringMode.fallback
     @State private var renaming: WiFiMap?
     @State private var newName = ""
+    @State private var deleting: WiFiMap?
 
     var body: some View {
-        Section("Saved maps") {
+        VStack(alignment: .leading, spacing: 10) {
+            SectionHeader(title: "Saved maps", trailing: maps.isEmpty ? nil : "\(maps.count)")
+
             if maps.isEmpty {
-                Text("No maps yet. Tap New Recording and walk around your property.")
-                    .foregroundStyle(.secondary)
+                emptyState
             }
             ForEach(maps) { map in
                 NavigationLink(value: Route.map(map)) {
                     MapRow(map: map, mode: mode)
                 }
-                .swipeActions {
-                    Button("Delete", role: .destructive) {
-                        context.delete(map)
-                        try? context.save()
-                    }
-                    Button("Rename") {
+                .buttonStyle(.plain)
+                .contextMenu {
+                    Button {
                         newName = map.name
                         renaming = map
+                    } label: {
+                        Label("Rename", systemImage: "pencil")
                     }
-                    .tint(.blue)
+                    Button(role: .destructive) {
+                        deleting = map
+                    } label: {
+                        Label("Delete", systemImage: "trash")
+                    }
                 }
             }
         }
         .renameAlert(map: $renaming, name: $newName)
+        .confirmationDialog("Delete this map?", isPresented: Binding(
+            get: { deleting != nil },
+            set: { if !$0 { deleting = nil } }
+        ), titleVisibility: .visible) {
+            Button("Delete map", role: .destructive) {
+                if let deleting {
+                    context.delete(deleting)
+                    try? context.save()
+                }
+                deleting = nil
+            }
+        } message: {
+            Text("Its samples will be removed from this device. Other versions are kept.")
+        }
+    }
+
+    private var emptyState: some View {
+        VStack(spacing: 10) {
+            Image(systemName: "map")
+                .font(.system(size: 34, weight: .light))
+                .foregroundStyle(Brand.blue.gradient)
+            Text("No maps yet").font(.headline)
+            Text("Tap Start New Recording and walk around your property to build your first coverage map.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 12)
+        .card()
     }
 }
 
@@ -42,25 +77,38 @@ struct MapRow: View {
 
     var body: some View {
         let average = map.averageScore(mode: mode)
-        HStack {
-            VStack(alignment: .leading, spacing: 3) {
+        HStack(spacing: 14) {
+            SignalRing(score: average, lineWidth: 5, valueFont: .system(size: 15, weight: .bold, design: .rounded))
+                .frame(width: 50, height: 50)
+            VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 6) {
                     Text(map.name).font(.headline).lineLimit(1)
-                    Text("v\(map.version)")
-                        .font(.caption2.bold())
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(.tint.opacity(0.15), in: Capsule())
+                    Pill(text: "v\(map.version)")
                 }
-                Text("Updated \(map.updatedAt.formatted(.relative(presentation: .named))) · \(map.samples.count) samples")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                HStack(spacing: 10) {
+                    Label(map.updatedAt.formatted(.relative(presentation: .named)), systemImage: "clock")
+                    Text("\(map.samples.count) samples")
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .labelStyle(CompactLabelStyle())
             }
-            Spacer()
-            Text(Format.score(average))
-                .font(.title3.bold().monospacedDigit())
-                .foregroundStyle(SignalColor.color(for: average))
-                .accessibilityLabel("Average score \(Format.score(average))")
+            Spacer(minLength: 0)
+            Image(systemName: "chevron.right")
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(.tertiary)
+        }
+        .card(padding: 14)
+        .accessibilityElement(children: .combine)
+        .accessibilityHint("Average score \(Format.score(average))")
+    }
+}
+
+struct CompactLabelStyle: LabelStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        HStack(spacing: 3) {
+            configuration.icon
+            configuration.title
         }
     }
 }

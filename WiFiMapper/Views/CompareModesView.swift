@@ -14,58 +14,76 @@ struct CompareModesView: View {
         let agreement = modeAgreement(metrics)
 
         ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 20) {
                 ViewThatFits(in: .horizontal) {
-                    HStack(spacing: 12) { maps }
+                    HStack(spacing: 12) { maps(stats) }
                         .frame(minWidth: 700)
-                    VStack(spacing: 12) { maps }
+                    VStack(spacing: 12) { maps(stats) }
                 }
 
-                Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 8) {
-                    GridRow {
-                        Text("")
-                        ForEach(stats, id: \.mode) { Text($0.mode.title).font(.headline) }
+                VStack(alignment: .leading, spacing: 10) {
+                    SectionHeader(title: "Statistics")
+                    Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 10) {
+                        GridRow {
+                            Text("")
+                            ForEach(stats, id: \.mode) { Text($0.mode.title).font(.subheadline.bold()) }
+                        }
+                        Divider()
+                        statRow("Samples scored", stats) { "\($0.scoredCount) / \($0.totalCount)" }
+                        statRow("Average", stats) { Format.score($0.mean) }
+                        statRow("Range", stats) { "\(Format.score($0.minimum))–\(Format.score($0.maximum))" }
+                        statRow("Spread (std dev)", stats) { Format.number($0.spread, digits: 1) }
+                        statRow("vs. latency", stats) { Format.correlation($0.latencyCorrelation) }
+                        statRow("vs. throughput", stats) { Format.correlation($0.throughputCorrelation) }
                     }
-                    Divider()
-                    statRow("Samples scored", stats) { "\($0.scoredCount) / \($0.totalCount)" }
-                    statRow("Average", stats) { Format.score($0.mean) }
-                    statRow("Range", stats) { "\(Format.score($0.minimum))–\(Format.score($0.maximum))" }
-                    statRow("Spread (std dev)", stats) { Format.number($0.spread, digits: 1) }
-                    statRow("vs. latency", stats) { Format.correlation($0.latencyCorrelation) }
-                    statRow("vs. throughput", stats) { Format.correlation($0.throughputCorrelation) }
+                    .font(.callout.monospacedDigit())
+                    .card()
                 }
-                .font(.callout.monospacedDigit())
 
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Apple strength reported in \(Format.percent(appleCoverage)) of connected samples.")
-                    Text("Agreement between modes: \(Format.correlation(agreement)).")
+                HStack(spacing: 12) {
+                    summaryTile("Apple strength reported", Format.percent(appleCoverage), icon: "cellularbars")
+                    summaryTile("Agreement between modes", Format.correlation(agreement), icon: "arrow.triangle.merge")
                 }
-                .font(.callout)
 
-                Text("""
-                    How to judge: look for the map that matches spots you know are good or bad (for example, \
-                    where streaming stalls). Larger spread means the mode separates strong and weak spots more \
-                    clearly. Correlation with latency should be negative and with throughput positive; \
-                    "Link quality" is built from latency, so it will always correlate more strongly with it.
-                    """)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
+                VStack(alignment: .leading, spacing: 8) {
+                    Label("How to judge", systemImage: "lightbulb.fill")
+                        .font(.subheadline.bold())
+                        .foregroundStyle(Brand.blue)
+                    Text("""
+                        Look for the map that matches spots you know are good or bad (for example, \
+                        where streaming stalls). Larger spread means the mode separates strong and weak spots more \
+                        clearly. Correlation with latency should be negative and with throughput positive; \
+                        "Link quality" is built from latency, so it will always correlate more strongly with it.
+                        """)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+                .card()
             }
-            .padding()
+            .padding(16)
         }
+        .brandBackground()
         .navigationTitle("Compare modes")
         .navigationBarTitleDisplayMode(.inline)
     }
 
     @ViewBuilder
-    private var maps: some View {
-        ForEach(ScoringMode.allCases) { mode in
-            VStack(alignment: .leading, spacing: 4) {
-                Text(mode.title).font(.headline)
-                HeatmapMapView(points: map.heatPoints(mode: mode))
-                    .frame(height: 280)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
+    private func maps(_ stats: [ModeStats]) -> some View {
+        ForEach(stats, id: \.mode) { stat in
+            VStack(alignment: .leading, spacing: 10) {
+                HStack {
+                    Text(stat.mode.title).font(.headline)
+                    Spacer()
+                    Text("avg \(Format.score(stat.mean))")
+                        .font(.subheadline.bold().monospacedDigit())
+                        .foregroundStyle(SignalColor.color(for: stat.mean))
+                }
+                HeatmapMapView(points: map.heatPoints(mode: stat.mode))
+                    .frame(height: 260)
+                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                LegendBar()
             }
+            .card(padding: 12)
         }
     }
 
@@ -74,6 +92,15 @@ struct CompareModesView: View {
             Text(title).foregroundStyle(.secondary)
             ForEach(stats, id: \.mode) { Text(value($0)) }
         }
+    }
+
+    private func summaryTile(_ title: String, _ value: String, icon: String) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Image(systemName: icon).foregroundStyle(Brand.teal)
+            Text(value).font(.title2.bold().monospacedDigit())
+            Text(title).font(.caption).foregroundStyle(.secondary)
+        }
+        .card(padding: 14)
     }
 
     private func modeAgreement(_ metrics: [SampleMetrics]) -> Double? {

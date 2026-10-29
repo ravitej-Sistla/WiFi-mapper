@@ -28,6 +28,14 @@ xcodebuild test -project WiFiMapper.xcodeproj -scheme WiFiMapper \
 
 Re-run `xcodegen generate` after adding or removing source files.
 
+Debug builds accept two launch arguments for checking the UI in the simulator, which can't take real readings. Set them in Xcode under Product → Scheme → Edit Scheme → Arguments:
+- `-demoData` adds a sample "Home & garden" map near Apple Park if the app has no maps yet.
+- `-demoScreen map|compare|record|checkHere|settings` opens that screen at launch.
+
+Set the simulator's location to the demo map with `xcrun simctl location booted set 37.3347,-122.0090`.
+
+The app icon is drawn in code by a short CoreGraphics script; `WiFiMapper/Assets.xcassets/AppIcon.appiconset/AppIcon.png` is its 1024 × 1024 output.
+
 ## Permissions
 
 - **Location (While Using):** places readings on the map. iOS also requires it to read the Wi-Fi network name. Choose **Precise**.

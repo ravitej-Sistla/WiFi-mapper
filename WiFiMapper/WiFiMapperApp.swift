@@ -52,6 +52,9 @@ struct RootView: View {
     @Environment(LocationService.self) private var location
     @Environment(SignalMonitor.self) private var monitor
     @Environment(Router.self) private var router
+    #if DEBUG
+    @Environment(\.modelContext) private var context
+    #endif
 
     var body: some View {
         @Bindable var router = router
@@ -67,6 +70,13 @@ struct RootView: View {
                     }
                 }
         }
+        .tint(Brand.blue)
+        #if DEBUG
+        .task {
+            DemoData.seedIfRequested(context)
+            if let route = DemoData.requestedRoute(context) { router.show(route) }
+        }
+        #endif
         .onChange(of: scenePhase, initial: true) { _, phase in
             switch phase {
             case .active:
