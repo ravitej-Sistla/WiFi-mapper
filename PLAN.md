@@ -67,15 +67,9 @@ WiFiMapper/
 - Field test: record one walk through the house and yard, open Compare Modes, and check which mode tracks real dead zones better (for example, a slow-streaming spot). Then set that mode as the default in Settings.
 
 ## Progress (as of this commit)
-Done (written, not yet compiled — no Swift toolchain in the authoring environment):
-- `project.yml`, `.gitignore`
-- `WiFiMapper/Models/`: ScoringMode (SampleMetrics, SignalScoring, SignalQuality), Interpolator (IDW), ModeStats, SignalSample, WiFiMap, AppSettings
-- `WiFiMapper/Services/`: LocationService, WiFiInfoService (+ NetworkPathService), GatewayResolver, LinkQualityProbe, SignalMonitor, RecordingSession (+ RecordingTarget)
-- `WiFiMapper/Heatmap/`: SignalColor, HeatmapOverlay, HeatmapRenderer, HeatmapMapView
+Done: all of the files above, plus `Views/Format.swift`, and the `Route`/`Router` navigation in `WiFiMapperApp.swift`.
+- Built with Xcode 26.2 for the iOS Simulator, with no errors or warnings. One fix was needed: `NWPath` is ambiguous between Network and NetworkExtension.
+- `WiFiMapperTests/`: 18 tests (scoring, IDW, stats) pass on the simulator.
+- The app launches on the simulator and shows Home plus the location prompt.
 
-Remaining:
-- `WiFiMapper/WiFiMapperApp.swift` (app entry, ModelContainer, RootView handling scenePhase start/stop of LocationService + SignalMonitor; keep running in background while `monitor.hasSubscriber`)
-- `WiFiMapper/Views/`: HomeView, LiveSignalCard, HistoryListView, RecordingView, MapDetailView, CheckHereView, CompareModesView, SettingsView
-- `WiFiMapperTests/`: scoring + IDW + stats unit tests
-- `README.md` with build steps
-- First compile on a Mac and fix any build errors
+Not yet verified: anything that needs a real device on real Wi-Fi (SSID/BSSID/signal strength, router probe, GPS recording, background recording). The field test is next.

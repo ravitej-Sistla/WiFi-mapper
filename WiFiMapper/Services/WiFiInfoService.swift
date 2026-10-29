@@ -28,7 +28,7 @@ final class NetworkPathService {
         monitor.start(queue: DispatchQueue(label: "wifimapper.path"))
     }
 
-    nonisolated private static func kind(for path: NWPath) -> ConnectionKind {
+    nonisolated private static func kind(for path: Network.NWPath) -> ConnectionKind {
         // Being associated with Wi-Fi counts even if the internet beyond the router is down.
         if path.usesInterfaceType(.wifi) || path.availableInterfaces.contains(where: { $0.type == .wifi }) {
             return .wifi
