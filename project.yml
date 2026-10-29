@@ -1,0 +1,79 @@
+name: WiFiMapper
+options:
+  bundleIdPrefix: com.ravitej
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    MARKETING_VERSION: "1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    # Set your Apple Developer Team ID here, or pick it in Xcode > Signing & Capabilities.
+    DEVELOPMENT_TEAM: ""
+
+targets:
+  WiFiMapper:
+    type: application
+    platform: iOS
+    sources:
+      - WiFiMapper
+    entitlements:
+      path: WiFiMapper/WiFiMapper.entitlements
+      properties:
+        # "Access Wi-Fi Information" — needed for SSID, BSSID and signalStrength.
+        com.apple.developer.networking.wifi-info: true
+    info:
+      path: WiFiMapper/Info.plist
+      properties:
+        CFBundleDisplayName: WiFi Mapper
+        UILaunchScreen: {}
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        NSLocationWhenInUseUsageDescription: >-
+          WiFi Mapper uses your precise location to place each Wi-Fi reading on the map.
+          iOS also requires location access to read the name of the Wi-Fi network you're on.
+        NSLocationTemporaryUsageDescriptionDictionary:
+          WiFiMapping: Precise location is needed to build an accurate Wi-Fi heatmap of your property.
+        NSLocalNetworkUsageDescription: >-
+          WiFi Mapper measures latency to your router to estimate Wi-Fi link quality.
+        UIBackgroundModes:
+          - location
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.ravitej.wifimapper
+        TARGETED_DEVICE_FAMILY: "1,2"
+        INFOPLIST_KEY_CFBundleDisplayName: WiFi Mapper
+
+  WiFiMapperTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - WiFiMapperTests
+    dependencies:
+      - target: WiFiMapper
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.ravitej.wifimapper.tests
+        GENERATE_INFOPLIST_FILE: YES
+
+schemes:
+  WiFiMapper:
+    build:
+      targets:
+        WiFiMapper: all
+        WiFiMapperTests: [test]
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - WiFiMapperTests
